@@ -1,6 +1,6 @@
 # Türkiye Hava Durumu & NASA YZ Asistanı 🌍🌦️
 
-Bu proje, NASA POWER API iklim verilerini ve Prophet makine öğrenmesi algoritmasını kullanarak Türkiye üzerindeki herhangi bir koordinat için 5 günlük hava durumu tahmini üreten interaktif bir web uygulamasıdır. Ayrıca Google Gemini API ile entegre çalışan ve kullanıcının seçtiği konuma özel seyahat/kıyafet/aktivite tavsiyeleri veren akıllı bir sohbet asistanı içerir. Nesne Yönelimli Programlama (OOP) mimarisiyle geliştirilmiştir.
+Bu proje, NASA POWER API iklim verilerini ve Prophet makine öğrenmesi algoritmasını kullanarak Türkiye üzerindeki herhangi bir koordinat için 5 günlük hava durumu tahmini üreten interaktif bir web uygulamasıdır. Ayrıca Google Gemini API ile entegre çalışan ve kullanıcının seçtiği konuma özel seyahat/kıyafet/aktivite tavsiyeleri veren akıllı bir sohbet asistanı içerir. 
 
 ## 🚀 Özellikler
 
