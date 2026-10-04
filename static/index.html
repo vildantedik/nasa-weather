@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Türkiye Hava Durumu | NASA Destekli</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<!-- Markdown Çevirici (Chatbot formatları için) -->
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+  
+  :root {
+    --bg-main: #050b14;
+    --bg-panel: #0d1627;
+    --bg-card-inner: #111b2d;
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+    --accent: #2563eb;
+    --accent-glow: rgba(37, 99, 235, 0.5);
+    --border: rgba(255, 255, 255, 0.05);
+  }
+  
+  html { scroll-behavior: smooth; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', sans-serif; background-color: var(--bg-main); color: var(--text-primary); display: flex; height: 100vh; overflow: hidden; }
+  
+  .main-content { flex: 1; display: flex; flex-direction: column; padding: 25px 40px; overflow-y: auto; }
+  
+  .dashboard-grid { display: grid; grid-template-columns: 3fr 1fr; gap: 20px; }
+  .left-column { display: flex; flex-direction: column; gap: 20px; }
+  .right-column { display: flex; flex-direction: column; gap: 20px; }
+  .bottom-split { display: grid; grid-template-columns: 1fr 2.4fr; gap: 20px; }
+  
+  .card { background: var(--bg-panel); border: 1px solid var(--border); border-radius: 16px; padding: 20px; }
+  .card-header { font-size: 0.95rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
+  
+  .current-weather { position: relative; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between; min-height: 240px; background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%); }
+  .current-weather::before { content: ''; position: absolute; top: 0; right: 0; bottom: 0; width: 60%; background: url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=800&auto=format&fit=crop') center/cover; opacity: 0.3; mask-image: linear-gradient(to left, black, transparent); -webkit-mask-image: linear-gradient(to left, black, transparent); }
+  .current-info { position: relative; z-index: 1; }
+  .temp-display { font-size: 4.5rem; font-weight: 700; margin: 5px 0; }
+  .weather-desc { font-size: 1.1rem; margin-bottom: 15px; color: #60a5fa;}
+  .metrics { display: flex; gap: 20px; font-size: 0.9rem; color: var(--text-primary); }
+  
+  .hourly-forecast { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 10px; scroll-behavior: smooth; }
+  .hourly-item { flex: 0 0 auto; min-width: 85px; background: var(--bg-card-inner); border: 1px solid var(--border); border-radius: 12px; padding: 15px 10px; display: flex; flex-direction: column; align-items: center; gap: 12px; font-size: 1rem; font-weight: 600; transition: transform 0.2s; }
+  .hourly-item:hover { transform: translateY(-3px); border-color: rgba(255,255,255,0.2); }
+  .hourly-item i { font-size: 1.8rem; }
+  .hourly-item span.time { color: var(--text-secondary); font-size: 0.85rem; font-weight: 400; }
+  
+  .hourly-forecast::-webkit-scrollbar { height: 6px; }
+  .hourly-forecast::-webkit-scrollbar-track { background: transparent; }
+  .hourly-forecast::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+  .hourly-forecast::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+  
+  .daily-list { display: flex; flex-direction: column; gap: 12px; }
+  .daily-item { display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+  .daily-item:last-child { border-bottom: none; padding-bottom: 0; }
+  .daily-item .day-name { width: 110px; color: var(--text-primary); }
+  .daily-item .weather-details { display: flex; gap: 12px; color: var(--text-secondary); font-size: 0.85rem; }
+  
+  .map-card { padding: 0; overflow: hidden; position: relative; display: flex; flex-direction: column; }
+  .map-title { position: absolute; top: 0; left: 0; background: rgba(13, 22, 39, 0.85); padding: 10px 20px; border-bottom-right-radius: 12px; z-index: 1000; font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); backdrop-filter: blur(4px);}
+  #map { flex: 1; min-height: 350px; width: 100%; border-radius: 16px; border: none; z-index: 1; }
+  
+  /* YZ ASİSTANI VE LİSTE STİLLERİ */
+  #chat-fab { position: fixed; bottom: 30px; right: 30px; background: var(--accent); width: 65px; height: 65px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 1.6rem; color: white; cursor: pointer; box-shadow: 0 0 20px var(--accent-glow); z-index: 1000; border: none; transition: 0.3s; }
+  #chat-fab:hover { transform: scale(1.1); }
+  #chat-widget { position: fixed; bottom: 110px; right: 30px; width: 420px; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 16px; display: none; flex-direction: column; box-shadow: 0 10px 40px rgba(0,0,0,0.8); z-index: 1000; overflow: hidden; }
+  #chat-header { background: var(--accent); padding: 18px 20px; font-weight: 600; display: flex; justify-content: space-between; font-size: 1.1rem; }
+  #chat-header button { background: transparent; border: none; color: white; cursor: pointer; font-size: 1.3rem; }
+  #log { height: 450px; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; font-size: 0.95rem; }
+  
+  .m { padding: 14px 18px; border-radius: 12px; max-width: 85%; line-height: 1.5; }
+  .m p { margin-bottom: 8px; }
+  .m p:last-child { margin-bottom: 0; }
+  .m ul, .m ol { margin-left: 20px; margin-bottom: 8px; }
+  .m li { margin-bottom: 6px; }
+  
+  .a { background: var(--bg-main); border: 1px solid var(--border); align-self: flex-start; border-bottom-left-radius: 2px; }
+  .u { background: var(--accent); color: white; align-self: flex-end; border-bottom-right-radius: 2px; }
+  
+  #f { display: flex; padding: 18px 20px; background: var(--bg-main); border-top: 1px solid var(--border); }
+  #f input { flex: 1; background: var(--bg-panel); border: 1px solid var(--border); padding: 14px; border-radius: 8px; color: white; outline: none; font-size: 1rem; }
+  #f button { background: var(--accent); border: none; color: white; padding: 0 22px; margin-left: 12px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 1.1rem; }
+  
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg-main); }
+  ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<main class="main-content" id="top">
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+    <div>
+      <h1 style="font-size: 1.5rem; font-weight: 600;">Türkiye Hava Durumu</h1>
+      <p style="font-size: 0.9rem; color: var(--text-secondary);">NASA & Yapay Zeka Destekli Tahmin Modeli</p>
+    </div>
+  </div>
+
+  <div class="dashboard-grid">
+    
+    <div class="left-column">
+      <div class="card current-weather">
+        <div class="current-info">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <i class="fa-solid fa-location-dot"></i>
+            <h2 id="current-location" style="font-size: 1.2rem;">Ankara, Türkiye</h2>
+          </div>
+          <p id="current-date" style="color:var(--text-secondary); font-size:0.85rem; margin-top:5px;"></p>
+          
+          <div class="temp-display" id="main-temp">--°C</div>
+          <div class="weather-desc">Model Hesaplanıyor...</div>
+          
+          <div class="metrics">
+            <div><i class="fa-solid fa-droplet" style="color:#60a5fa"></i> <span id="main-rain">Yağış: -- mm</span></div>
+            <div><i class="fa-solid fa-wind" style="color:#94a3b8"></i> <span id="main-wind">Rüzgar: -- m/s</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="padding-bottom: 10px;">
+        <div class="card-header" style="margin-bottom: 12px;"><span>Saatlik Tahmin (Canlı Veri)</span></div>
+        <div class="hourly-forecast" id="hourly-container">
+          <div style="text-align:center; width:100%; color:var(--text-secondary); padding: 15px;">Canlı veriler yükleniyor...</div>
+        </div>
+      </div>
+
+      <div class="bottom-split" id="map-section">
+        <div class="card">
+          <div class="card-header" style="font-size: 0.85rem;"><span>5 Günlük Tahmin</span> <span id="status" style="color:var(--accent);"></span></div>
+          <div class="daily-list" id="cards">
+            <div style="text-align:center; padding: 20px; color:var(--text-secondary); font-size:0.85rem;">Veriler yükleniyor...</div>
+          </div>
+        </div>
+        
+        <div class="card map-card">
+          <div class="map-title"><i class="fa-solid fa-satellite"></i> Uydu & Canlı Radar</div>
+          <div id="map"></div>
+        </div>
+      </div>
+      
+    </div>
+
+    <div class="right-column">
+      
+      <div class="card">
+        <div class="card-header"><span>Hava Kalitesi</span></div>
+        <div style="font-size: 2.2rem; font-weight:700;" id="aqi-val">--</div>
+        <div style="height: 4px; background: linear-gradient(to right, #4ade80, #facc15, #f87171); border-radius: 2px; margin: 10px 0;"></div>
+        <p style="font-size:0.8rem; color:var(--text-secondary);" id="aqi-desc">Ölçülüyor...</p>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><span style="color:#fbbf24;"><i class="fa-solid fa-bell"></i> Uyarılar</span></div>
+        <p style="font-size:0.85rem; line-height:1.6;" id="alert-box">Risk durumu analiz ediliyor...</p>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><span>Sistem Bilgisi</span> <i class="fa-solid fa-circle-info"></i></div>
+        <p style="font-size:0.85rem; color:var(--text-secondary); line-height:1.6;">Sistem, sadece Türkiye koordinatlarında NASA POWER ve Prophet algoritması kullanılarak çalışmaktadır.</p>
+      </div>
+
+    </div>
+
+  </div>
+</main>
+
+<button id="chat-fab"><i class="fa-solid fa-message"></i></button>
+<div id="chat-widget">
+  <div id="chat-header">
+    <span><i class="fa-solid fa-robot"></i> YZ Asistanı</span>
+    <button id="close-chat"><i class="fa-solid fa-xmark"></i></button>
+  </div>
+  <div id="log">
+    <div class="m a">Merhaba! Haritadan tıkladığınız şehre özel yapay zeka hava tahmini çıkarılacaktır. Ardından bana tavsiye sorabilirsiniz.</div>
+  </div>
+  <form id="f"><input id="q" placeholder="Mesajınızı yazın..." autocomplete="off"><button><i class="fa-solid fa-paper-plane"></i></button></form>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+let reqId = 0;
+let chatHistory = [];
+let pos = { lat: 39.93, lon: 32.86 }; 
+
+const today = new Date();
+const options = { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' };
+$("current-date").textContent = today.toLocaleDateString('tr-TR', options);
+
+const turkeyBounds = L.latLngBounds([35.8, 25.5], [42.1, 44.8]);
+
+const map = L.map("map", {
+    zoomControl: true,
+    maxBounds: turkeyBounds,
+    maxBoundsViscosity: 1.0,
+    minZoom: 5,
+    maxZoom: 18
+}).setView([pos.lat, pos.lon], 5);
+
+L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
+  attribution: "Tiles &copy; Esri",
+  maxZoom: 18,
+  maxNativeZoom: 17
+}).addTo(map);
+
+L.tileLayer("https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}", {
+  attribution: "Labels &copy; Esri",
+  maxZoom: 18,
+  maxNativeZoom: 17
+}).addTo(map);
+
+fetch("https://api.rainviewer.com/public/weather-maps.json")
+  .then(res => res.json())
+  .then(data => {
+      const pastRadars = data.radar.past;
+      const latestFrame = pastRadars[pastRadars.length - 1].path;
+      L.tileLayer(`https://tilecache.rainviewer.com${latestFrame}/256/{z}/{x}/{y}/2/1_1.png`, {
+          opacity: 0.65,
+          zIndex: 10,
+          maxZoom: 18,
+          maxNativeZoom: 8, 
+          attribution: "Radar &copy; RainViewer"
+      }).addTo(map);
+  })
+  .catch(err => console.error("Radar verisi alınamadı:", err));
+
+const marker = L.marker([pos.lat, pos.lon]).addTo(map);
+
+function getWeatherIcon(code) {
+    if(code <= 1) return '<i class="fa-solid fa-sun" style="color:#fbbf24"></i>';
+    if(code <= 3) return '<i class="fa-solid fa-cloud-sun" style="color:#94a3b8"></i>';
+    if(code >= 50 && code <= 69) return '<i class="fa-solid fa-cloud-rain" style="color:#60a5fa"></i>';
+    if(code >= 70 && code <= 79) return '<i class="fa-solid fa-snowflake" style="color:#e0f2fe"></i>';
+    if(code >= 95) return '<i class="fa-solid fa-bolt" style="color:#fbbf24"></i>';
+    return '<i class="fa-solid fa-cloud" style="color:#94a3b8"></i>';
+}
+
+async function loadRealTimeData(lat, lon) {
+    try {
+        const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=temperature_2m,weathercode,windspeed_10m,precipitation&timezone=auto`);
+        const data = await res.json();
+
+        const aqiRes = await fetch(`https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&current=european_aqi`);
+        const aqiData = await aqiRes.json();
+
+        let aqi = aqiData.current.european_aqi;
+        let aqiStatus = aqi < 50 ? "İyi" : (aqi < 100 ? "Orta" : "Kötü");
+        let aqiColor = aqi < 50 ? "#4ade80" : (aqi < 100 ? "#facc15" : "#f87171");
+        $("aqi-val").innerHTML = `<span style="color:${aqiColor}">${aqi}</span> <span style="font-size: 1rem; font-weight:400; color:var(--text-secondary)">${aqiStatus} AQI</span>`;
+        $("aqi-desc").textContent = aqi < 50 ? "Sağlık için ideal seviyede." : "Hassas gruplar dikkatli olmalı.";
+
+        let hourlyHtml = "";
+        const now = new Date();
+        const currentHourIdx = data.hourly.time.findIndex(t => new Date(t) >= now) || 0;
+        
+        for(let i=0; i<12; i++) {
+            let idx = currentHourIdx + i;
+            if(idx >= data.hourly.time.length) break;
+            
+            let timeStr = new Date(data.hourly.time[idx]).toLocaleTimeString('tr-TR', {hour: '2-digit', minute:'2-digit'});
+            let temp = Math.round(data.hourly.temperature_2m[idx]);
+            let icon = getWeatherIcon(data.hourly.weathercode[idx]);
+            hourlyHtml += `<div class="hourly-item"><span class="time">${i===0 ? "Şu an" : timeStr}</span>${icon}<span>${temp}°</span></div>`;
+        }
+        $("hourly-container").innerHTML = hourlyHtml;
+
+        let next24Wind = data.hourly.windspeed_10m.slice(currentHourIdx, currentHourIdx+24);
+        let next24Rain = data.hourly.precipitation.slice(currentHourIdx, currentHourIdx+24);
+        let maxWind = Math.max(...next24Wind);
+        let maxRain = Math.max(...next24Rain);
+
+        let alertBox = $("alert-box");
+        if (maxWind > 45) {
+            alertBox.innerHTML = `<span style="color:#f87171; font-weight:bold"><i class="fa-solid fa-triangle-exclamation"></i> Fırtına Uyarısı:</span><br>Önümüzdeki 24 saat içinde kuvvetli rüzgar bekleniyor.`;
+        } else if (maxRain > 10) {
+            alertBox.innerHTML = `<span style="color:#60a5fa; font-weight:bold"><i class="fa-solid fa-cloud-showers-heavy"></i> Kuvvetli Yağış:</span><br>Bölgede yoğun sağanak yağış beklenmektedir.`;
+        } else {
+            alertBox.innerHTML = `<span style="color:#4ade80"><i class="fa-solid fa-circle-check"></i> Güvenli:</span><br>Bölgede ekstrem bir hava olayı uyarısı bulunmamaktadır.`;
+        }
+
+    } catch(e) { console.error("Gerçek zamanlı veri çekilemedi:", e); }
+}
+
+function setPos(lat, lon, recenter, cityName="Seçilen Konum") {
+  pos = { lat: +lat.toFixed(3), lon: +lon.toFixed(3) };
+  marker.setLatLng([pos.lat, pos.lon]);
+  if (recenter) map.setView([pos.lat, pos.lon], Math.max(map.getZoom(), 5));
+  
+  $("current-location").textContent = `${cityName}, Türkiye`;
+  chatHistory = []; 
+  loadForecast();
+  loadRealTimeData(pos.lat, pos.lon);
+}
+
+map.on("click", async e => {
+  const ll = map.wrapLatLng(e.latlng);
+  
+  if (!turkeyBounds.contains(ll)) {
+      alert("Bu sistem sadece Türkiye senaryosu için yapılandırılmıştır.");
+      return;
+  }
+
+  try {
+    const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${ll.lat}&lon=${ll.lng}&format=json&accept-language=tr`);
+    const data = await res.json();
+    
+    if(data.address && data.address.country_code !== "tr") {
+        alert("Sadece Türkiye'deki konumlar seçilebilir.");
+        return;
+    }
+
+    let city = data.address.province || data.address.city || data.address.town || "Seçilen Konum";
+    city = city.replace(" Province", "").replace(" (İl)", "").trim();
+    
+    setPos(ll.lat, ll.lng, false, city);
+  } catch(err) {
+    setPos(ll.lat, ll.lng, false, "Kırsal/Özel Konum");
+  }
+});
+
+async function loadForecast() {
+  $("status").textContent = "Hesaplanıyor...";
+  const id = ++reqId, lat = pos.lat, lon = pos.lon;
+  try {
+    const r = await fetch(`/api/forecast?lat=${lat}&lon=${lon}`);
+    const j = await r.json();
+    if (id !== reqId) return; 
+    if (!r.ok) throw new Error(j.error);
+    
+    if(j.days.length > 0) {
+        $("main-temp").textContent = `${j.days[0].temp.toFixed(1)}°C`;
+        $("main-rain").textContent = `Yağış: ${j.days[0].rain} mm`;
+        $("main-wind").textContent = `Rüzgar: ${j.days[0].wind} m/s`;
+        document.querySelector('.weather-desc').textContent = "Yapay Zeka Tahmini Aktif";
+    }
+
+    $("cards").innerHTML = j.days.map(d => {
+      let dayTemp = d.temp.toFixed(1);
+      let nightTemp = (d.temp - 7).toFixed(1);
+      
+      return `
+      <div class="daily-item">
+        <div class="day-name"><i class="fa-solid fa-calendar-day" style="color:var(--text-secondary); margin-right:6px;"></i> ${new Date(d.date).toLocaleDateString('tr-TR', {weekday:"long"})}</div>
+        <div style="font-weight:600; color:white; display:flex; gap:10px;">
+            <span><i class="fa-solid fa-sun" style="color:#fbbf24; font-size:0.8rem;"></i> ${dayTemp}°</span>
+            <span style="color:var(--text-secondary);"><i class="fa-solid fa-moon" style="font-size:0.8rem;"></i> ${nightTemp}°</span>
+        </div>
+        <div class="weather-details">
+            <span title="Yağış"><i class="fa-solid fa-droplet" style="color:#60a5fa"></i> ${d.rain}</span>
+            <span title="Rüzgar"><i class="fa-solid fa-wind" style="color:#94a3b8"></i> ${d.wind}</span>
+        </div>
+      </div>`
+    }).join("");
+    $("status").textContent = "";
+  } catch (e) { 
+    if (id === reqId) $("status").textContent = "Hata oluştu"; 
+  }
+}
+
+$("chat-fab").onclick = () => { $("chat-widget").style.display = "flex"; $("chat-fab").style.display = "none"; };
+$("close-chat").onclick = () => { $("chat-widget").style.display = "none"; $("chat-fab").style.display = "flex"; };
+
+function addMessage(text, cls) {
+  const el = document.createElement("div");
+  el.className = "m " + cls; 
+  // Yapay Zeka cevapları için Markdown parse et, kullanıcı mesajlarını düz bırak
+  if(cls === "a") {
+      el.innerHTML = marked.parse(text);
+  } else {
+      el.textContent = text;
+  }
+  $("log").appendChild(el); $("log").scrollTop = 1e9;
+}
+
+$("f").onsubmit = async e => {
+  e.preventDefault();
+  const message = $("q").value.trim(); if (!message) return;
+  $("q").value = ""; addMessage(message, "u");
+  try {
+    const cityName = $("current-location").textContent.replace(", Türkiye", "").trim();
+    
+    const r = await fetch("/api/chat", { method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ message, history: chatHistory, lat: pos.lat, lon: pos.lon, city: cityName }) });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error);
+    addMessage(j.reply, "a");
+    chatHistory.push({ role:"user", content:message }, { role:"assistant", content:j.reply });
+  } catch (err) { addMessage("Hata: " + err.message, "a"); }
+};
+
+setPos(pos.lat, pos.lon, false, "Ankara");
+</script>
+</body>
+</html>
